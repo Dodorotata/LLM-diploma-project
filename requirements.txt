@@ -1,4 +1,4 @@
 llama-index
 llama-index-llms-huggingface
 llama-index-program-guidance
-llama-cpp-python
+llama-cpp-python==0.2.26 #version 0.2.60 results in inconsistent output
