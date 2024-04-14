@@ -2,9 +2,10 @@ llama-index
 llama-index-llms-huggingface
 llama-index-program-guidance
 
-# llama-cpp-python==0.2.26 #for {Guidance} version 0.2.60 results in inconsistent output
-# for cuda support: CUDACXX=/usr/local/cuda-12/bin/nvcc CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all-major" FORCE_CMAKE=1 pip install llama-cpp-python==0.2.26 --no-cache-dir --force-reinstall --upgrade
+# llama-cpp-python==0.2.26
+# for {Guidance} use llama-cpp-python==0.2.26 (0.2.60/61 results in inconsistent output and/or can not be run on CUDA)
+# for cuda support llama-cpp-python==0.2.26: CUDACXX=/usr/local/cuda-12/bin/nvcc CMAKE_ARGS="-DLLAMA_CUBLAS=on -DCMAKE_CUDA_ARCHITECTURES=all-major" FORCE_CMAKE=1 pip install llama-cpp-python==0.2.26 --no-cache-dir --force-reinstall --upgrade
+# for cuda support recent versions of llama.cpp:  CUDACXX=/usr/local/cuda-12/bin/nvcc CMAKE_ARGS="-DLLAMA_CUDA=on" FORCE_CMAKE=1 pip install  --no-cache-dir --force-reinstall --upgrade llama-cpp-python
 llama-cpp-python==0.2.61
-
 llama-index-llms-llama-cpp
 llama-index-extractors-entity
