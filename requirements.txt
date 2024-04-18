@@ -9,3 +9,5 @@ llama-index-program-guidance
 llama-cpp-python==0.2.61
 llama-index-llms-llama-cpp
 llama-index-extractors-entity
+lmql # pip install lmql[hf]
+llama-index-embeddings-huggingface
