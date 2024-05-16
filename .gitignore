@@ -1,5 +1,6 @@
 # Directories / documents
 00_concept_tests/
+*.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
