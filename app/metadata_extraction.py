@@ -1,7 +1,12 @@
-# extract data from all patents in a specified folder
+# This script is to extract data from all patents (filename is assumed to be patentid.extention) in a specified folder using a defined local LLM model.
+# LLM output is constrained using {Guidance} which is prompted from a Pydantic model.
+# Output is validated against the Pydanic model and next stored in a SQLite database.
+#-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 import sqlite3
 from llama_cpp import Llama
 import os
+from pathlib import Path
 from pypdf import PdfReader
 from datetime import datetime
 import guidance
@@ -47,15 +52,17 @@ def create_table():
     cur.close()
 
 def initialize_llm(path):
+    print(f"Loading LLM from path {path}")
     model = Llama(path, n_gpu_layers=10, n_ctx=0, echo=False, verbose=False)
     lm = guidance.models.LlamaCpp(model=model, echo=False, silent=False)
+    print("Finished loading LLM")
     return lm
 
 class PatentMetadata(BaseModel):
-    summary: str = Field(..., description="generate summary of the invention in 1 sentence")
-    key_technological_field: str = Field(..., description="list 5 key technological concepts in 1-3 words described in patent")
+    summary: str = Field(..., description="generate summary of the invention in 1 sentence", min_length=10)
+    key_technological_field: str = Field(..., description="list 5 key technological concepts in 1-3 words described in patent", min_length=10)
     novelty_level: str = Field(..., description="select one value from provided examples to define level of novelty of invention", examples=['LOW', 'MEDIUM', 'HIGH'])
-    novelty_level_reason: str = Field(..., description="describe reason for chosen novelty_level in 1 sentece")
+    novelty_level_reason: str = Field(..., description="describe reason for chosen novelty_level in 1 sentece", min_length=10)
     medical_device_category: str = Field(...,
                                          description="choose device category from provided examples",
                                          examples=['Clinical chemistry and clinical toxicology devices',
@@ -109,12 +116,14 @@ def get_metadata(lm, text, pydantic_class):
     lm += '}'
     return lm
 
-def output_to_pydantic(pydantic_class, output):
-    '''Transorms output from lm/guidance -> dict -> original pydantic model'''
+def outupt_to_dict(pydantic_class, output):
     metadata_dict = {}
     for key in pydantic_class.model_fields.keys():
         metadata_dict[key] = output[key]
+    return metadata_dict
 
+def output_dict_to_pydantic(pydantic_class, metadata_dict):
+    '''Transorms output from lm/guidance -> dict -> original pydantic model'''
     output_pydantic_model = pydantic_class(**metadata_dict)
     return output_pydantic_model
 
@@ -154,13 +163,21 @@ if __name__ == "__main__":
     model_file = args.model_file
     reprocess = args.reprocess
 
+    if not Path(data_dir).is_dir():
+        print(f"Provided data directory {data_dir} does not exist or is not readable")
+        exit(1)
+    
+    if not Path(model_file).is_file():
+        print(f"Provided model file {model_file} does not exist or is not readable")
+        exit(1)
+
     create_table()
 
     lm = initialize_llm(model_file)
 
     for filename in os.listdir(data_dir):
         cur = get_cursor()
-        patentid = filename.split('.')[0] # filename is assumed to be patentid.pdf
+        patentid = filename.split('.')[0]
         print(f'extracting metadata from {patentid}')
 
         if reprocess:
@@ -173,18 +190,30 @@ if __name__ == "__main__":
             print(f'{patentid} already exists')
             continue
         else:
-            file = os.path.join(data_dir, filename)
-            reader = PdfReader(file) 
-            num_pages = len(reader.pages)
-            TEXT = ""
-            for page_num in range(num_pages):
-                page = reader.pages[page_num]  
-                TEXT += page.extract_text()
-
+            try:
+                file = os.path.join(data_dir, filename)
+                reader = PdfReader(file) 
+                num_pages = len(reader.pages)
+                TEXT = ""
+                for page_num in range(num_pages):
+                    page = reader.pages[page_num]  
+                    TEXT += page.extract_text()
+            except Exception as e:
+                print(f"Exception in file {file}. Skipping.")
+                print(e)
+                continue 
+            
             output = lm + get_metadata(TEXT, PatentMetadata)
-            output_pydantic = output_to_pydantic(PatentMetadata, output)
-            insert_record(cur, patentid, output_pydantic)
+            output_dict = outupt_to_dict(PatentMetadata, output)
 
+            try:
+                output_pydantic = output_dict_to_pydantic(PatentMetadata, output_dict)
+            except Exception as e:
+                print(f"Got exceptioin {e} trying to crate Pydantic model. Skipping file {file}")
+                print(output_dict)
+                continue
+            
+            insert_record(cur, patentid, output_pydantic)
             print(f'done extracting from {patentid}')
 
         cur.close()
