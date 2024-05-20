@@ -122,7 +122,7 @@ def outupt_to_dict(pydantic_class, output):
         metadata_dict[key] = output[key]
     return metadata_dict
 
-def output_to_pydantic(pydantic_class, metadata_dict):
+def output_dict_to_pydantic(pydantic_class, metadata_dict):
     '''Transorms output from lm/guidance -> dict -> original pydantic model'''
     output_pydantic_model = pydantic_class(**metadata_dict)
     return output_pydantic_model
@@ -207,7 +207,7 @@ if __name__ == "__main__":
             output_dict = outupt_to_dict(PatentMetadata, output)
 
             try:
-                output_pydantic = output_to_pydantic(PatentMetadata, output_dict)
+                output_pydantic = output_dict_to_pydantic(PatentMetadata, output_dict)
             except Exception as e:
                 print(f"Got exceptioin {e} trying to crate Pydantic model. Skipping file {file}")
                 print(output_dict)
